@@ -3,17 +3,41 @@ name: Send anniversary email
 on:
   schedule:
     - cron: "20 21 5 12 *"   # 每年 12/05 21:20 UTC = 12/06 05:20 MYT
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   send:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: pip install --upgrade pip
+
+      - name: Install pip (optional)
+        run: pip install --upgrade pip
+
+      # ⬇⬇⬇ 在这里插入“自检 Secrets”步骤 ⬇⬇⬇
+      - name: Debug secrets presence
+        env:
+          SENDER_EMAIL:   ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:   ${{ secrets.APP_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+        run: |
+          python - <<'PY'
+          import os
+          pw = os.environ.get("APP_PASSWORD","")
+          print("SENDER_EMAIL =", os.environ.get("SENDER_EMAIL","<EMPTY>"))
+          print("RECEIVER_EMAIL =", os.environ.get("RECEIVER_EMAIL","<EMPTY>"))
+          print("APP_PASSWORD length =", len(pw))
+          if " " in pw:
+              print("WARNING: APP_PASSWORD contains spaces!")
+          PY
+      # ⬆⬆⬆ 自检步骤到此结束 ⬆⬆⬆
+
       - name: Send Email
         env:
           SENDER_EMAIL:   ${{ secrets.SENDER_EMAIL }}
