@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>For My Love ❤</title>
+  <style>
+    html,body{height:100%;margin:0}
+    body{
+      background:#0b0f14;
+      color:#fff;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      overflow:hidden;
+    }
+    canvas{display:block; width:min(92vw,720px); height:calc(min(92vw,720px)*1.12); max-width:720px; border-radius:18px; box-shadow:0 12px 40px rgba(0,0,0,.35)}
+    .text{
+      position:absolute; left:50%; transform:translateX(-50%);
+      bottom: max(12px, env(safe-area-inset-bottom, 12px));
+      width: min(92vw, 720px);
+      text-align:center; line-height:1.6; padding:10px 14px; box-sizing:border-box;
+      font-size:clamp(14px, 2.7vw, 18px);
+      pointer-events:none;
+      text-shadow:0 2px 4px rgba(0,0,0,.35);
+    }
+    .text b{font-weight:700}
+    .footer{position:fixed; top:10px; left:50%; transform:translateX(-50%); font-size:12px; opacity:.5}
+  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%96%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <canvas id="cv" width="640" height="720"></canvas>
+  <div class="text" id="loveText"></div>
+  <div class="footer">made with ❤</div>
+
+<script>
+/* ======= 你可以修改的配置 ======= */
+const START_DATE = "2022-12-06";       // 在一起的日期（YYYY-MM-DD）
+const HER_NAME   = "宝贝";              // 称呼
+const TIMEZONE   = "Asia/Kuala_Lumpur"; // 展示/计时用时区
+const HEART_COLOR = "#ff3b7a";
+const HALO_COLOR  = "#ffa4c2";
+const BG_COLOR    = "#0b0f14";
+const FPS = 60;                         // 目标帧率
+/* ================================= */
+
+// —— 计算“第几天”
+function daysTogether(startStr, tz) {
+  const [y,m,d] = startStr.split("-").map(Number);
+  // 用传入时区的“今天”
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit'});
+  const parts = fmt.formatToParts(new Date());
+  const today = new Date(`${parts.find(p=>p.type==='year').value}-${parts.find(p=>p.type==='month').value}-${parts.find(p=>p.type==='day').value}T00:00:00`);
+  const start = new Date(`${y.toString().padStart(4,'0')}-${m.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}T00:00:00`);
+  return Math.floor((today - start) / 86400000) + 1; // 第一天算1
+}
+
+// —— 周年数（满一年显示1周年）
+function yearsTogether(startStr, tz){
+  const [y,m,d] = startStr.split("-").map(Number);
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+  let years = now.getFullYear() - y;
+  const anniv = new Date(now.getFullYear(), m-1, d);
+  if (now < anniv) years -= 1;
+  return Math.max(0, years);
+}
+
+// —— 文案渲染
+function renderText() {
+  const d = daysTogether(START_DATE, TIMEZONE);
+  const y = yearsTogether(START_DATE, TIMEZONE);
+  const todayFmt = new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+  const line1 = `${HER_NAME}，纪念日快乐！`;
+  const line2 = `今天是我们在一起的第 <b>${d}</b> 天 ❤️` + (y>0 ? `，也是第 <b>${y}</b> 周年 🎉` : "");
+  const line3 = `—— ${todayFmt}`;
+  document.getElementById("loveText").innerHTML = `${line1}<br>${line2}<br>${line3}`;
+}
+
+// —— 心形函数
+function heartXY(t, shrink=10){
+  let x = 16 * Math.sin(t)**3;
+  let y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+  x/=16; y/=18;
+  return [x/shrink, -y/shrink];
+}
+const rand = (a,b)=> a + Math.random()*(b-a);
+const choice = arr => arr[(Math.random()*arr.length)|0];
+function shrink(x,y,r){ return [x*r, y*r]; }
+function scatterInside(x,y,beta=0.07){
+  const ratio = - beta * Math.log(Math.random() + 1e-9);
+  return [x - ratio*(x-0), y - ratio*(y-0)];
+}
+function easeInOut01(x){ return (1 - Math.cos(Math.min(Math.max(x,0),1)*Math.PI))/2; }
+
+function genFramePoints(frame, totalFrames){
+  const ratio = 10 * easeInOut01(frame/totalFrames);
+  const points = [];
+
+  // halo
+  const haloN = 1800 + Math.floor(1400 * Math.abs(easeInOut01(frame/totalFrames)**2));
+  const seen = new Set();
+  while(seen.size < haloN){
+    const t = rand(0, Math.PI*2);
+    let [x,y] = heartXY(t, 11.0);
+    [x,y] = shrink(x,y, ratio/11.0);
+    const k = ((x*1000)|0)+"," + ((y*1000)|0);
+    if(!seen.has(k)){
+      seen.add(k);
+      const size = choice([1,2]);
+      points.push({x,y,size,halo:true});
+    }
+  }
+
+  // 主边缘
+  const edge = [];
+  for(let i=0;i<400;i++){
+    const t = rand(0, Math.PI*2);
+    const [x,y] = heartXY(t,1.0);
+    edge.push([x,y]);
+  }
+
+  // 扩散边缘
+  for(const [ex,ey] of edge){
+    let [x,y] = scatterInside(ex,ey,0.05);
+    const size = (1 + (Math.random()*2)|0);
+    points.push({x:x/ratio, y:y/ratio, size, halo:false});
+  }
+
+  // 内部
+  for(let i=0;i<3500;i++){
+    const [ex,ey] = choice(edge);
+    let [x,y] = scatterInside(ex,ey,0.17);
+    const size = 1 + (Math.random()*2|0);
+    points.push({x:x/ratio, y:y/ratio, size, halo:false});
+  }
+
+  return points;
+}
+
+function startCanvas(){
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  let frame = 0;
+  const totalFrames = 6 * FPS; // 6秒一个循环
+
+  function draw(){
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0,0,W,H);
+
+    const pts = genFramePoints(frame, totalFrames);
+    const cx = W/2, cy = H/2 - 30;
+    const scale = W*0.85;
+
+    for(const p of pts){
+      const X = (cx + p.x*scale)|0;
+      const Y = (cy + p.y*scale)|0;
+      ctx.fillStyle = p.halo ? HALO_COLOR : HEART_COLOR;
+      ctx.fillRect(X, Y, p.size, p.size);
+    }
+
+    frame = (frame+1) % totalFrames;
+  }
+
+  // 控制帧率
+  let last = 0, acc = 0, interval = 1000/FPS;
+  function loop(ts){
+    if (!last) last = ts;
+    const delta = ts - last;
+    last = ts;
+    acc += delta;
+    while (acc >= interval){
+      draw();
+      acc -= interval;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+renderText();
+startCanvas();
+</script>
+</body>
+</html>
