@@ -109,25 +109,19 @@ def should_send(now_myt: datetime) -> bool:
 
 # ===== 发送邮件 =====
 def send_email(subject: str, body: str):
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = SENDER_EMAIL
-    msg["To"] = ", ".join(RECEIVER_EMAILS)
-
     ctx = ssl.create_default_context()
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as s:
-        s.ehlo()
-        s.starttls(context=ctx)
-        s.ehlo()
-        try:
-            s.login(SMTP_USERNAME, SMTP_PASSWORD)
-        except smtplib.SMTPAuthenticationError as e:
-            print(f"[AUTH FAIL] {e.smtp_code}: {e.smtp_error}")
-            print("检查：1) 若用 Gmail，请确保使用【应用专用密码】；"
-                  "2) SENDER_EMAIL 与生成该密码的账号一致；"
-                  "3) 如仍失败，可改用 SendGrid，并设置 SMTP_* 环境变量。")
-            raise
-        s.sendmail(SENDER_EMAIL, RECEIVER_EMAILS, msg.as_string())
+        s.ehlo(); s.starttls(context=ctx); s.ehlo()
+        s.login(SMTP_USERNAME, SMTP_PASSWORD)
+
+        for rcpt in RECEIVER_EMAILS:
+            msg = MIMEText(body, "plain", "utf-8")
+            msg["Subject"] = Header(subject, "utf-8")
+            msg["From"] = SENDER_EMAIL
+            msg["To"] = rcpt  # send to one person
+            s.sendmail(SENDER_EMAIL, [rcpt], msg.as_string())
+            print("Sent to:", rcpt)
+
 
 
 # ===== 主流程 =====
