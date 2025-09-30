@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-email_sender.py — HTML version with SURPRISE button
-- Sends an HTML email (with plain-text fallback) so "SURPRISE" is clickable
+email_sender.py — HTML email with a SURPRISE button (点我查看 🎁)
+- Hard-coded PAGE_URL to your GitHub Pages link
 - Time gate: only sends at 12/06 05:20 Asia/Kuala_Lumpur unless FORCE_SEND=true
 - Supports multiple recipients via RECEIVER_EMAILS (comma-separated)
-
 Required secrets (env):
   SENDER_EMAIL, APP_PASSWORD, (RECEIVER_EMAIL or RECEIVER_EMAILS),
-  START_DATE, HER_NAME, PAGE_URL
+  START_DATE, HER_NAME
 Optional:
   FORCE_SEND ("true"/"false"), SMTP_SERVER/PORT/USERNAME/PASSWORD for custom SMTP
 """
+
 import os, smtplib, ssl, sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -18,9 +18,13 @@ from email.header import Header
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
-# ===== Config =====
+# ===== Your public page (hard-coded) =====
+PAGE_URL = "https://wenjoo.github.io/letterstomylove/"
+
+# ===== Secrets / config =====
 SENDER_EMAIL   = os.environ.get("SENDER_EMAIL", "").strip()
 APP_PASSWORD   = os.environ.get("APP_PASSWORD", "").strip()
+
 _raw_multi = os.environ.get("RECEIVER_EMAILS", "")
 RECEIVER_EMAILS = [e.strip() for e in _raw_multi.split(",") if e.strip()]
 if not RECEIVER_EMAILS:
@@ -29,8 +33,8 @@ if not RECEIVER_EMAILS:
 
 START_DATE = os.environ.get("START_DATE", "2022-12-06").strip()
 HER_NAME   = os.environ.get("HER_NAME", "Baby").strip()
-PAGE_URL   = os.environ.get("PAGE_URL", "https://wenjoo.github.io/letterstomylove/").strip()
 
+# SMTP (Gmail by default; supports SendGrid etc. via overrides)
 SMTP_SERVER   = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
 SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USERNAME = os.environ.get("SMTP_USERNAME", SENDER_EMAIL).strip()
@@ -50,7 +54,7 @@ def sanity_check():
         fail("No recipients. Set RECEIVER_EMAIL or RECEIVER_EMAILS")
     if not SMTP_PASSWORD:
         fail("Missing SMTP password (APP_PASSWORD or SMTP_PASSWORD)")
-    # quick START_DATE check
+    # START_DATE quick check
     try:
         y, m, d = [int(x) for x in START_DATE.split("-")]
         _ = date(y, m, d)
@@ -66,7 +70,7 @@ def days_together(today: date) -> int:
 
 def should_send(now_myt: datetime) -> bool:
     target = now_myt.replace(year=now_myt.year, month=12, day=6, hour=5, minute=20, second=0, microsecond=0)
-    return abs((now_myt - target).total_seconds()) <= 600  # ±10 min window
+    return abs((now_myt - target).total_seconds()) <= 600  # ±10 min
 
 # ===== Bodies =====
 def build_plain(today: date) -> str:
@@ -81,8 +85,9 @@ def build_plain(today: date) -> str:
 def build_html(today: date) -> str:
     d = days_together(today)
     date_str = today.strftime('%Y年%m月%d日')
-    url = PAGE_URL  # make sure this is like: https://wenjoo.github.io/letterstomylove/
+    url = PAGE_URL  # your hard-coded link
 
+    # Bulletproof CTA (works in Gmail/Outlook/iOS) + tiny fallback text link
     return f"""\
 <!doctype html>
 <html>
@@ -93,7 +98,6 @@ def build_html(today: date) -> str:
       <p style="margin:0 0 12px 0;">{HER_NAME}，纪念日快乐！</p>
       <p style="margin:0 0 18px 0;">今天是我们在一起的第 <strong>{d}</strong> 天 ❤️</p>
 
-      <!-- Bulletproof button -->
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;">
         <tr>
           <td align="center">
@@ -120,7 +124,6 @@ def build_html(today: date) -> str:
         </tr>
       </table>
 
-      <!-- tiny fallback link so every client has a clickable URL -->
       <p style="margin:0 0 4px 0;font-size:14px;color:#555;">
         如果按钮无法打开，请点击或复制这个链接：<br>
         <a href="{url}" target="_blank" style="color:#1a73e8;">{url}</a>
@@ -131,7 +134,6 @@ def build_html(today: date) -> str:
   </body>
 </html>"""
 
-
 # ===== Send =====
 def send_email(subject: str, body_plain: str, body_html: str):
     msg = MIMEMultipart("alternative")
@@ -139,7 +141,6 @@ def send_email(subject: str, body_plain: str, body_html: str):
     msg["From"] = SENDER_EMAIL
     msg["To"] = ", ".join(RECEIVER_EMAILS)
 
-    # attach plain + html (clients pick best)
     msg.attach(MIMEText(body_plain, "plain", "utf-8"))
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
