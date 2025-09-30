@@ -46,6 +46,6 @@ jobs:
           START_DATE:       ${{ secrets.START_DATE }}
           HER_NAME:         ${{ secrets.HER_NAME }}
           PAGE_URL:         ${{ secrets.PAGE_URL }}
-          FORCE_SEND:       ${{ github.event.inputs.force_send || 'false' }}
+          FORCE_SEND:       ${{ github.event.inputs.force_send || 'true' }}
         run: python email_sender.py
 
