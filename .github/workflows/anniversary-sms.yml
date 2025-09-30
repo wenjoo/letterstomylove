@@ -1,0 +1,38 @@
+name: Send anniversary SMS
+
+on:
+  schedule:
+    - cron: "20 21 5 12 *"   # 每年 12/05 21:20 UTC 触发 = 12/06 05:20 MYT
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只预览（不发短信）？true/false"
+        required: false
+        default: "true"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Send SMS
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN:  ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          TO_NUMBER:          ${{ secrets.TO_NUMBER }}
+          START_DATE:         ${{ secrets.START_DATE }}
+          HER_NAME:           ${{ secrets.HER_NAME }}
+          LINK:               ${{ secrets.LINK }}
+          DRY_RUN:            ${{ github.event.inputs.dry_run }}
+        run: python sms_sender.py
