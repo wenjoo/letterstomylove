@@ -206,7 +206,7 @@ function genFrame(frame,total){
   requestAnimationFrame(loop);
 })();
 
-/* ======= 音乐控制（启动页 → 播放并淡出） ======= */
+/* ======= 音乐控制（启动页 → 播放并淡出）——更稳健版 ======= */
 (function musicGate(){
   const audio = document.getElementById('bgm');
   const gate  = document.getElementById('gate');
@@ -215,10 +215,15 @@ function genFrame(frame,total){
   const toggle= document.getElementById('musicBtn');
 
   let isPlaying = false;
-  audio.volume = 0; audio.muted = false;
+
+  // 显示加载状态（文件可播放时提示）
+  audio.addEventListener('canplay', ()=> { tip.textContent = '已准备好，点击播放音乐'; });
+  audio.addEventListener('error', ()=> {
+    tip.textContent = '音频加载失败：请检查 assets/music.mp3 路径/文件名/后缀';
+  });
 
   function fadeTo(target=1, ms=800){
-    const steps=16, dt=ms/steps; let v=audio.volume, dv=(target - v)/steps;
+    const steps=16, dt=ms/steps; let v=audio.volume||0, dv=(target - v)/steps;
     const id=setInterval(()=>{
       v += dv;
       if ((dv>0 && v>=target) || (dv<0 && v<=target)){ v=target; clearInterval(id); }
@@ -228,37 +233,44 @@ function genFrame(frame,total){
 
   async function start(){
     try{
-      audio.currentTime = 0;
-      await audio.play();
-      fadeTo(1, 800);
+      btn.disabled = true;
+      tip.textContent = '加载中…请稍等';
+      audio.muted = false;
+      audio.currentTime = 0;         // 从头开始
+      audio.volume = 0;              // 先从0音量淡入
+      await audio.play();            // **必须在点击事件里调用**
+      fadeTo(1, 800);                // 平滑淡入
       isPlaying = true;
       toggle.style.display = 'inline-block';
-      toggle.textContent = "⏸ 暂停音乐";
+      toggle.textContent = '⏸ 暂停音乐';
       gate.classList.add('fade');
       setTimeout(()=>{ gate.style.display='none'; }, 400);
     }catch(e){
-      tip.textContent = "如果没有响声，请再点一次“播放音乐”。";
+      // 如果失败，通常是文件没找到或浏览器仍要求再点一次
+      btn.disabled = false;
+      tip.textContent = '未能播放：请确认音量未静音、再次点击，或检查音乐文件路径';
+      console.log('play error:', e);
     }
   }
 
   btn.addEventListener('click', start);
 
-  // 悬浮按钮：后续可随时暂停/继续
+  // 悬浮按钮：暂停/继续
   toggle.addEventListener('click', ()=>{
-    if (!isPlaying) { start(); return; }
+    if (!isPlaying){ start(); return; }
     if (audio.paused){
       audio.play().catch(()=>{});
-      toggle.textContent = "⏸ 暂停音乐";
+      toggle.textContent = '⏸ 暂停音乐';
     }else{
       audio.pause();
-      toggle.textContent = "♪ 播放音乐";
+      toggle.textContent = '♪ 播放音乐';
     }
   });
 
-  // 用户首次触碰页面也尝试启动（部分安卓会放行）
+  // 首次触摸/按键也试图启动（部分安卓会放行）
   const kick = () => { if(!isPlaying){ start(); } window.removeEventListener('touchstart', kick); window.removeEventListener('keydown', kick); };
   window.addEventListener('touchstart', kick, {once:true});
-  window.addEventListener('keydown', kick, {once:true});
+  window.addEventListener('keydown',  kick, {once:true});
 })();
 </script>
 </body>
