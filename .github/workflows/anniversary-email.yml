@@ -1,0 +1,24 @@
+name: Send anniversary email
+
+on:
+  schedule:
+    - cron: "20 21 5 12 *"   # 每年 12/05 21:20 UTC = 12/06 05:20 MYT
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install --upgrade pip
+      - name: Send Email
+        env:
+          SENDER_EMAIL:   ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:   ${{ secrets.APP_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+          START_DATE:     ${{ secrets.START_DATE }}
+          HER_NAME:       ${{ secrets.HER_NAME }}
+        run: python email_sender.py
