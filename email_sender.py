@@ -81,7 +81,8 @@ def build_plain(today: date) -> str:
 def build_html(today: date) -> str:
     d = days_together(today)
     date_str = today.strftime('%Y年%m月%d日')
-    # Simple, bulletproof inline styles for email
+    url = PAGE_URL  # make sure this is like: https://wenjoo.github.io/letterstomylove/
+
     return f"""\
 <!doctype html>
 <html>
@@ -91,17 +92,45 @@ def build_html(today: date) -> str:
                 color:#111;font-size:16px;line-height:1.6;">
       <p style="margin:0 0 12px 0;">{HER_NAME}，纪念日快乐！</p>
       <p style="margin:0 0 18px 0;">今天是我们在一起的第 <strong>{d}</strong> 天 ❤️</p>
-      <p style="margin:0 0 24px 0;">
-        <a href="{PAGE_URL}" target="_blank"
-           style="display:inline-block;background:#111;color:#fff;text-decoration:none;
-                  padding:12px 20px;border-radius:8px;font-weight:700;letter-spacing:.5px;">
-          SURPRISE
-        </a>
+
+      <!-- Bulletproof button -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;">
+        <tr>
+          <td align="center">
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml"
+              xmlns:w="urn:schemas-microsoft-com:office:word"
+              href="{url}" style="height:44px;v-text-anchor:middle;width:240px;"
+              arcsize="12%" strokecolor="#111111" fillcolor="#111111">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:16px;font-weight:bold;">
+                点我查看 🎁
+              </center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-- -->
+            <a href="{url}" target="_blank" rel="noopener noreferrer"
+               style="background:#111111;color:#ffffff;display:inline-block;
+                      padding:12px 22px;border-radius:8px;text-decoration:none;
+                      font-weight:700;letter-spacing:.3px;">
+              点我查看 🎁
+            </a>
+            <!--<![endif]-->
+          </td>
+        </tr>
+      </table>
+
+      <!-- tiny fallback link so every client has a clickable URL -->
+      <p style="margin:0 0 4px 0;font-size:14px;color:#555;">
+        如果按钮无法打开，请点击或复制这个链接：<br>
+        <a href="{url}" target="_blank" style="color:#1a73e8;">{url}</a>
       </p>
-      <p style="margin:0 0 4px 0;">—— {date_str}</p>
+
+      <p style="margin:12px 0 0 0;">—— {date_str}</p>
     </div>
   </body>
 </html>"""
+
 
 # ===== Send =====
 def send_email(subject: str, body_plain: str, body_html: str):
