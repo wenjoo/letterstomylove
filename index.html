@@ -96,7 +96,7 @@
   let START_DATE = "2022-12-06";          // 在一起日期（YYYY-MM-DD）
   let HER_NAME   = "Baby";                 // 称呼
   let TIMEZONE   = "Asia/Kuala_Lumpur";    // 计时/展示时区
-  let LETTER_SRC = "assets/letter.jpg";    // 手写信图片路径
+  let LETTER_SRC = "letter.jpg";    // 手写信图片路径
   // 可选：允许 URL 覆盖 ?name=&start=&img=
   const q = new URLSearchParams(location.search);
   if (q.get("name"))  HER_NAME   = q.get("name");
@@ -118,7 +118,7 @@
 <div id="gate">
   <div class="card">
     <h1>准备好了吗？</h1>
-    <p>建议戴上耳机 🎧<br>点击下方按钮开始播放音乐并进入页面</p>
+    <p>点击下方按钮开始播放音乐并进入我们的世界</p>
     <button id="startBtn">▶️ 播放音乐</button>
     <p id="gateTip" style="margin-top:10px; opacity:.6; font-size:12px;"></p>
   </div>
