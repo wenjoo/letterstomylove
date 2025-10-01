@@ -1,9 +1,41 @@
-name: Send anniversary email
+name: Send love email (anniversary + new year)
 
 on:
+  # 手动触发，便于测试不同模板/临时收件人/是否强制发送
+  workflow_dispatch:
+    inputs:
+      event:
+        description: "选择要发送/测试的模板"
+        required: true
+        type: choice
+        options:
+          - anniv2025
+          - newyear2026
+      to:
+        description: "可选：覆盖收件人（逗号分隔），留空则使用 Secrets"
+        required: false
+        type: string
+      force_send:
+        description: "是否跳过时间窗口（仅手动触发时）"
+        required: true
+        type: choice
+        options: [ "true", "false" ]
+        default: "true"
+
+  # 定时触发（UTC 时间）
   schedule:
-    - cron: "20 21 5 12 *"   # 每年 12/05 21:20 UTC = 12/06 05:20 MYT
-  workflow_dispatch: {}
+    # 12/06 05:20 MYT  == 12/05 21:20 UTC
+    - cron: "20 21 5 12 *"
+    # 01/01 00:00 MYT  == 12/31 16:00 UTC
+    - cron: "0 16 31 12 *"
+
+permissions:
+  contents: read
+
+# 并发保护，避免重复并发
+concurrency:
+  group: love-mail-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
   send:
@@ -15,37 +47,69 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
-      - name: Install pip (optional)
-        run: pip install --upgrade pip
-
-      # ⬇⬇⬇ 在这里插入“自检 Secrets”步骤 ⬇⬇⬇
-      - name: Debug secrets presence
+      # 安全的 Secrets 自检（只打印存在与否/长度，不泄漏内容）
+      - name: Check secrets presence (safe)
         env:
-          SENDER_EMAIL:   ${{ secrets.SENDER_EMAIL }}
-          APP_PASSWORD:   ${{ secrets.APP_PASSWORD }}
-          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAILS }}
+          _SENDER:           ${{ secrets.SENDER_EMAIL }}
+          _PW:               ${{ secrets.APP_PASSWORD }}
+          _TO_LIST:          ${{ secrets.RECEIVER_EMAILS }}
+          _TO_SINGLE:        ${{ secrets.RECEIVER_EMAIL }}
+          _START_DATE:       ${{ secrets.START_DATE }}
+          _HER_NAME:         ${{ secrets.HER_NAME }}
         run: |
           python - <<'PY'
           import os
-          pw = os.environ.get("APP_PASSWORD","")
-          print("SENDER_EMAIL =", os.environ.get("SENDER_EMAIL","<EMPTY>"))
-          print("RECEIVER_EMAIL =", os.environ.get("RECEIVER_EMAIL","<EMPTY>"))
-          print("APP_PASSWORD length =", len(pw))
-          if " " in pw:
-              print("WARNING: APP_PASSWORD contains spaces!")
+          def present(k): 
+              v=os.environ.get(k,"")
+              return "YES" if v else "NO"
+          print("SENDER_EMAIL:", present("_SENDER"))
+          print("APP_PASSWORD length:", len(os.environ.get("_PW","")))
+          print("RECEIVER_EMAILS:", present("_TO_LIST"))
+          print("RECEIVER_EMAIL :", present("_TO_SINGLE"))
+          print("START_DATE:", present("_START_DATE"))
+          print("HER_NAME  :", present("_HER_NAME"))
           PY
-      # ⬆⬆⬆ 自检步骤到此结束 ⬆⬆⬆
 
-      - name: Send Email
+      # ===== 手动触发：可强制发送 + 选择模板/覆盖收件人 =====
+      - name: Run (manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          SENDER_EMAIL:     ${{ secrets.SENDER_EMAIL }}
-          APP_PASSWORD:     ${{ secrets.APP_PASSWORD }}
-          RECEIVER_EMAILS:  ${{ secrets.RECEIVER_EMAILS }}    # ← use this
-          START_DATE:       ${{ secrets.START_DATE }}
-          HER_NAME:         ${{ secrets.HER_NAME }}
-          PAGE_URL:         ${{ secrets.PAGE_URL }}
-          FORCE_SEND:       ${{ github.event.inputs.force_send || 'true' }}
+          SENDER_EMAIL:    ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:    ${{ secrets.APP_PASSWORD }}
+          # 优先用输入的 to；否则用 secret 的 RECEIVER_EMAILS；再否则尝试单个 RECEIVER_EMAIL
+          RECEIVER_EMAILS: ${{ github.event.inputs.to != '' && github.event.inputs.to || secrets.RECEIVER_EMAILS }}
+          RECEIVER_EMAIL:  ${{ secrets.RECEIVER_EMAIL }}
+          START_DATE:      ${{ secrets.START_DATE }}
+          HER_NAME:        ${{ secrets.HER_NAME }}
+          # 可选 SMTP 覆盖（非 Gmail 才需要）
+          SMTP_SERVER:     ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+          # 测试相关
+          FORCE_SEND:      ${{ github.event.inputs.force_send }}
+          FORCE_EVENT:     ${{ github.event.inputs.event }}
+          # （可选）让脚本支持通过环境变量覆盖 PAGE_URL，见文末补丁
+          PAGE_URL:        ${{ secrets.PAGE_URL }}
         run: python email_sender.py
 
+      # ===== 定时触发：不强制发送，按脚本时间窗判定 =====
+      - name: Run (scheduled)
+        if: ${{ github.event_name == 'schedule' }}
+        env:
+          SENDER_EMAIL:    ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:    ${{ secrets.APP_PASSWORD }}
+          RECEIVER_EMAILS: ${{ secrets.RECEIVER_EMAILS }}
+          RECEIVER_EMAIL:  ${{ secrets.RECEIVER_EMAIL }}
+          START_DATE:      ${{ secrets.START_DATE }}
+          HER_NAME:        ${{ secrets.HER_NAME }}
+          SMTP_SERVER:     ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+          FORCE_SEND:      "false"
+          FORCE_EVENT:     ""
+          PAGE_URL:        ${{ secrets.PAGE_URL }}
+        run: python email_sender.py
