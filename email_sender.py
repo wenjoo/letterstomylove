@@ -42,12 +42,6 @@ if not RECEIVER_EMAILS:
 START_DATE = os.environ.get("START_DATE", "2022-12-06").strip()
 HER_NAME   = os.environ.get("HER_NAME", "Baby").strip()
 
-# SMTP (Gmail by default; supports SendGrid etc. via overrides)
-SMTP_SERVER   = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
-SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USERNAME = os.environ.get("SMTP_USERNAME", SENDER_EMAIL).strip()
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", APP_PASSWORD).strip()
-
 FORCE_SEND   = os.environ.get("FORCE_SEND", "false").lower() == "true"
 FORCE_EVENT  = os.environ.get("FORCE_EVENT", "").strip()  # "anniv2025" | "newyear2026"
 
