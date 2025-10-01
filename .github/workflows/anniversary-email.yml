@@ -1,7 +1,7 @@
-name: Send love email (anniversary + new year)
+name: Send anniversary email
 
 on:
-  # 手动触发，便于测试不同模板/临时收件人/是否强制发送
+  # 手动触发，便于测试
   workflow_dispatch:
     inputs:
       event:
@@ -12,34 +12,35 @@ on:
           - anniv2025
           - newyear2026
       to:
-        description: "可选：覆盖收件人（逗号分隔），留空则使用 Secrets"
+        description: "可选：覆盖收件人，逗号分隔；留空则用仓库 Secrets"
         required: false
         type: string
       force_send:
-        description: "是否跳过时间窗口（仅手动触发时）"
+        description: "手动触发时是否跳过时间窗口"
         required: true
         type: choice
         options: [ "true", "false" ]
         default: "true"
 
-  # 定时触发（UTC 时间）
+  # 定时触发（UTC 时间！）
   schedule:
-    # 12/06 05:20 MYT  == 12/05 21:20 UTC
+    # 2025-12-06 05:20 MYT == 2025-12-05 21:20 UTC
     - cron: "20 21 5 12 *"
-    # 01/01 00:00 MYT  == 12/31 16:00 UTC
+    # 2026-01-01 00:00 MYT == 2025-12-31 16:00 UTC
     - cron: "0 16 31 12 *"
 
 permissions:
   contents: read
 
-# 并发保护，避免重复并发
+# 并发保护：避免同一分支多次并发（保留正在跑的，不取消）
 concurrency:
-  group: love-mail-${{ github.ref }}-${{ github.event_name }}
+  group: anniversary-email-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
   send:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,15 +50,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 安全的 Secrets 自检（只打印存在与否/长度，不泄漏内容）
+      # 安全自检：只检查是否存在/长度，避免泄漏
       - name: Check secrets presence (safe)
         env:
-          _SENDER:           ${{ secrets.SENDER_EMAIL }}
-          _PW:               ${{ secrets.APP_PASSWORD }}
-          _TO_LIST:          ${{ secrets.RECEIVER_EMAILS }}
-          _TO_SINGLE:        ${{ secrets.RECEIVER_EMAIL }}
-          _START_DATE:       ${{ secrets.START_DATE }}
-          _HER_NAME:         ${{ secrets.HER_NAME }}
+          _SENDER:     ${{ secrets.SENDER_EMAIL }}
+          _PW:         ${{ secrets.APP_PASSWORD }}
+          _TO_LIST:    ${{ secrets.RECEIVER_EMAILS }}
+          _TO_SINGLE:  ${{ secrets.RECEIVER_EMAIL }}
+          _START_DATE: ${{ secrets.START_DATE }}
+          _HER_NAME:   ${{ secrets.HER_NAME }}
         run: |
           python - <<'PY'
           import os
@@ -91,7 +92,7 @@ jobs:
           # 测试相关
           FORCE_SEND:      ${{ github.event.inputs.force_send }}
           FORCE_EVENT:     ${{ github.event.inputs.event }}
-          # （可选）让脚本支持通过环境变量覆盖 PAGE_URL，见文末补丁
+          # 让脚本支持通过环境变量覆盖 PAGE_URL（请确保脚本使用 os.environ.get("PAGE_URL", ...)）
           PAGE_URL:        ${{ secrets.PAGE_URL }}
         run: python email_sender.py
 
