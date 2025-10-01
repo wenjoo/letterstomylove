@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 from typing import Optional
 
 # ===== Your public page (hard-coded) =====
-PAGE_URL = "https://wenjoo.github.io/letterstomylove/"
+PAGE_URL = os.environ.get("PAGE_URL", "https://wenjoo.github.io/letterstomylove/").strip() or "https://wenjoo.github.io/letterstomylove/"
 
 # ===== Secrets / config =====
 SENDER_EMAIL   = os.environ.get("SENDER_EMAIL", "").strip()
