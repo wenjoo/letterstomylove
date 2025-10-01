@@ -96,12 +96,27 @@
   let START_DATE = "2022-12-06";          // 在一起日期（YYYY-MM-DD）
   let HER_NAME   = "Baby";                 // 称呼
   let TIMEZONE   = "Asia/Kuala_Lumpur";    // 计时/展示时区
-  let LETTER_SRC = "letter.jpg";    // 手写信图片路径
+
+  // 改这里：把手写信 JPG 文件名换成你的新图
+  let LETTER_SRC = "letter-anniv.jpg";     // 新的手写信图片（替代原来的 letter.jpg）
+
   // 可选：允许 URL 覆盖 ?name=&start=&img=
   const q = new URLSearchParams(location.search);
   if (q.get("name"))  HER_NAME   = q.get("name");
   if (q.get("start")) START_DATE = q.get("start");
   if (q.get("img"))   LETTER_SRC = q.get("img");
+
+  // 判定 2026-01-01（Asia/Kuala_Lumpur）
+  function isNewYear2026(tz){
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+    return now.getFullYear() === 2026 && now.getMonth() === 0 && now.getDate() === 1;
+  }
+
+  // 2026-01-01 当天自动切换为烟花 GIF（除非用 ?img 覆盖）
+  const USE_FIREWORKS = isNewYear2026(TIMEZONE);
+  if (USE_FIREWORKS && !q.get("img")) {
+    LETTER_SRC = "fireworks.gif"; // 使用 make_fireworks.py 生成
+  }
 </script>
 <!-- ================================= -->
 
@@ -131,7 +146,7 @@
   <div class="overlay-text" id="loveText"></div>
 </section>
 
-<!-- 手写信区 -->
+<!-- 手写信区 / 跨年烟花 -->
 <section id="letter" class="letter">
   <h2>给你的一封手写信</h2>
   <div class="tip">（点图片可放大）</div>
@@ -163,13 +178,20 @@ function renderText(){
   const d=daysTogether(START_DATE,TIMEZONE);
   const y=yearsTogether(START_DATE,TIMEZONE);
   const todayFmt=new Intl.DateTimeFormat('zh-CN',{timeZone:TIMEZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  const line1=`${HER_NAME}，纪念日快乐！`;
-  const line2=`今天是我们在一起的第 <b>${d}</b> 天 ❤️` + (y>0?`，也是第 <b>${y}</b> 周年 🎉`:"");
-  const line3=`—— ${todayFmt}`;
+
+  const isNY = isNewYear2026(TIMEZONE);
+  const line1 = isNY ? `${HER_NAME}，新年快乐！🎆` : `${HER_NAME}，纪念日快乐！`;
+  const line2 = isNY
+    ? `我们的第 <b>${d}</b> 天，从新年的第一刻继续爱你 ❤️`
+    : `今天是我们在一起的第 <b>${d}</b> 天 ❤️` + (y>0?`，也是第 <b>${y}</b> 周年 🎉`:"");
+  const line3 = `—— ${todayFmt}`;
+
   document.getElementById("loveText").innerHTML=`${line1}<br>${line2}<br>${line3}`;
+
   const img=document.getElementById('letterImg');
   const link=document.getElementById('letterLink');
   img.src=LETTER_SRC; link.href=LETTER_SRC;
+  img.alt = isNY ? "烟花动图" : "手写情书图片";
 }
 renderText();
 
@@ -219,7 +241,7 @@ function genFrame(frame,total){
   // 显示加载状态（文件可播放时提示）
   audio.addEventListener('canplay', ()=> { tip.textContent = '已准备好，点击播放音乐'; });
   audio.addEventListener('error', ()=> {
-    tip.textContent = '音频加载失败：请检查 assets/music.mp3 路径/文件名/后缀';
+    tip.textContent = '音频加载失败：请检查 music.mp3 路径/文件名/后缀';
   });
 
   function fadeTo(target=1, ms=800){
