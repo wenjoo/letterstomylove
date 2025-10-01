@@ -24,6 +24,7 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
+from typing import Optional
 
 # ===== Your public page (hard-coded) =====
 PAGE_URL = "https://wenjoo.github.io/letterstomylove/"
@@ -79,7 +80,7 @@ def days_together(today: date) -> int:
 # ===== Multi-event scheduler =====
 WINDOW_SECS = 600  # ±10 minutes
 
-def which_event(now_myt: datetime) -> str | None:
+def which_event(now_myt: datetime) -> Optional[str]:
     """Return the event key if within send window, else None."""
     tz = now_myt.tzinfo
     targets = [
@@ -180,7 +181,7 @@ def build_html_newyear(today: date) -> str:
               arcsize="12%" strokecolor="#111111" fillcolor="#111111">
               <w:anchorlock/>
               <center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:16px;font-weight:bold;">
-                点我查看 🎁
+                点我看烟花 🎆
               </center>
             </v:roundrect>
             <![endif]-->
@@ -189,7 +190,7 @@ def build_html_newyear(today: date) -> str:
                style="background:#111111;color:#ffffff;display:inline-block;
                       padding:12px 22px;border-radius:8px;text-decoration:none;
                       font-weight:700;letter-spacing:.3px;">
-              点我查看 🎁
+              点我看烟花 🎆
             </a>
             <!--<![endif]-->
           </td>
