@@ -121,10 +121,15 @@
   let START_DATE = "2022-12-06";
   let HER_NAME   = "Baby";
   let TIMEZONE   = "Asia/Kuala_Lumpur";
-  let LETTER_SRCS = ["letter1.jpg", "letter2.jpg"];
-  let VIDEO_SRC  = "memory.mp4"; // 留空则隐藏视频
 
-  // 可选 URL 参数覆盖
+  // 多图：把你的手写信图放在这里
+  let LETTER_SRCS = ["letter1.jpg", "letter2.jpg"];
+
+  // 使用 Google Drive 直链作为视频源（已替换为你的 File ID）
+  // 确保 Drive 权限是「任何知道链接的人 - 查看者」
+  let VIDEO_SRC  = "https://drive.google.com/uc?export=download&id=1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy";
+
+  // 可选 URL 覆盖：?name=&start=&imgs=imgA.jpg,imgB.jpg&video=<drive-url>
   const q = new URLSearchParams(location.search);
   if (q.get("name"))  HER_NAME   = q.get("name");
   if (q.get("start")) START_DATE = q.get("start");
@@ -167,7 +172,9 @@
   <h2>我们的回忆视频</h2>
   <div class="tip">（点击播放 / 全屏观看）</div>
   <div class="video-wrap">
-    <video id="loveVideo" playsinline controls preload="metadata"></video>
+    <video id="loveVideo" playsinline controls preload="metadata" poster="">
+      <!-- 如果你还导出了 webm，也可以加一行 <source type="video/webm"> 作为备选 -->
+    </video>
   </div>
 </section>
 
@@ -215,7 +222,13 @@ function renderVideo(){
   const wrap=document.getElementById('video');
   const video=document.getElementById('loveVideo');
   if(!VIDEO_SRC){ wrap.style.display='none'; return; }
-  video.src=VIDEO_SRC;
+
+  // 直接用 Drive 直链
+  video.src = VIDEO_SRC;
+
+  // 如果你也有本地 mp4/webm，可这样加备选：
+  // const s1 = document.createElement('source'); s1.src='output.webm'; s1.type='video/webm'; video.appendChild(s1);
+  // const s2 = document.createElement('source'); s2.src='output.mp4';  s2.type='video/mp4';  video.appendChild(s2);
 }
 function renderAll(){ renderHeaderText(); renderLetterGallery(); renderVideo(); }
 renderAll();
