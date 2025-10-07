@@ -7,7 +7,7 @@
   <meta name="description" content="Love page for my girl.">
   <style>
     :root{
-      --bg:#000;            /* 全黑背景 */
+      --bg:#000;
       --heart:#ff3b7a;
       --halo:#ffa4c2;
       --text:#fff;
@@ -43,43 +43,37 @@
       font-size:13px; opacity:.7; pointer-events:auto
     }
 
-    /* 手写信区域 */
+    /* 手写信区域（竖排） */
     .letter{
       padding:42px 16px 64px; display:flex; flex-direction:column; align-items:center; gap:12px
     }
     .letter h2{margin:0 0 6px 0; font-size:18px; font-weight:600; opacity:.9}
     .letter .tip{font-size:12px; opacity:.6; margin-bottom:8px}
 
-    /* 画廊网格 */
-    .letter .grid{
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:10px;
-      width:min(92vw,var(--maxw));
-      max-width:var(--maxw);
+    /* 竖向一列的图片列表 */
+    .letter .stack{
+      display:flex; flex-direction:column; gap:12px;
+      width:min(92vw,var(--maxw)); max-width:var(--maxw);
     }
-    @media (min-width:680px){
-      .letter .grid{ grid-template-columns:repeat(3,1fr); }
+    .img-wrap{
+      display:block; width:100%;
+      border-radius:14px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.65);
+      background:#111;
     }
-    .letter .thumb{
-      position:relative; overflow:hidden; border-radius:12px;
-      background:#111; box-shadow:0 10px 28px rgba(0,0,0,.6);
+    .img-wrap img{
+      width:100%; height:auto; display:block; image-rendering:auto;
     }
-    .letter .thumb img{
-      width:100%; height:100%; display:block; object-fit:cover; aspect-ratio:4/5;
-      transition:transform .25s ease, opacity .25s ease;
-    }
-    .letter .thumb:hover img{ transform:scale(1.02); }
-    .letter .thumb a{ display:block; width:100%; height:100%; }
 
-    /* 视频区 */
-    .video-wrap video{
-      width:min(92vw,var(--maxw));
-      max-width:var(--maxw);
-      border-radius:14px;
+    /* 视频区（Drive 预览 iframe） */
+    .video-wrap{
+      width:min(92vw,var(--maxw)); max-width:var(--maxw);
+      aspect-ratio:16/9;
+      border-radius:14px; overflow:hidden;
       box-shadow:0 14px 40px rgba(0,0,0,.65);
       background:#111;
-      outline:none;
+    }
+    .video-wrap iframe{
+      width:100%; height:100%; border:0; display:block;
     }
 
     .footer{padding:18px 0 48px; text-align:center; font-size:12px; opacity:.45}
@@ -122,22 +116,22 @@
   let HER_NAME   = "Baby";
   let TIMEZONE   = "Asia/Kuala_Lumpur";
 
-  // 多图：把你的手写信图放在这里
+  // 两张手写信（竖排）
   let LETTER_SRCS = ["letter1.jpg", "letter2.jpg"];
 
-  // 使用 Google Drive 直链作为视频源（已替换为你的 File ID）
-  // 确保 Drive 权限是「任何知道链接的人 - 查看者」
-  let VIDEO_SRC  = "https://drive.google.com/uc?export=download&id=1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy";
+  // 使用 Google Drive 预览嵌入（可播放）：/file/d/FILE_ID/preview
+  // 你的文件 ID：1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy
+  let DRIVE_PREVIEW_URL = "https://drive.google.com/file/d/1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy/preview";
 
-  // 可选 URL 覆盖：?name=&start=&imgs=imgA.jpg,imgB.jpg&video=<drive-url>
+  // 可选 URL 覆盖：?name=&start=&imgs=imgA.jpg,imgB.jpg&drive=完整preview链接
   const q = new URLSearchParams(location.search);
   if (q.get("name"))  HER_NAME   = q.get("name");
   if (q.get("start")) START_DATE = q.get("start");
   if (q.get("imgs"))  LETTER_SRCS = q.get("imgs").split(",").map(s=>s.trim()).filter(Boolean);
-  if (q.get("video")) VIDEO_SRC = q.get("video").trim();
+  if (q.get("drive")) DRIVE_PREVIEW_URL = q.get("drive").trim();
 </script>
 
-<!-- 音乐 -->
+<!-- 背景音乐 -->
 <audio id="bgm" preload="auto" loop playsinline>
   <source src="music.mp3" type="audio/mpeg">
 </audio>
@@ -160,21 +154,19 @@
   <div class="overlay-text" id="loveText"></div>
 </section>
 
-<!-- 手写信区 -->
+<!-- 手写信区（竖排） -->
 <section id="letter" class="letter">
   <h2>给你的一封手写信</h2>
-  <div class="tip">（点任意图片可放大）</div>
-  <div class="grid" id="letterGrid"></div>
+  <div class="tip">（点图片可放大）</div>
+  <div class="stack" id="letterStack"></div>
 </section>
 
-<!-- 回忆视频区 -->
+<!-- 回忆视频区（Drive 预览可直接播放） -->
 <section id="video" class="letter" style="padding-top:16px;">
   <h2>我们的回忆视频</h2>
   <div class="tip">（点击播放 / 全屏观看）</div>
   <div class="video-wrap">
-    <video id="loveVideo" playsinline controls preload="metadata" poster="">
-      <!-- 如果你还导出了 webm，也可以加一行 <source type="video/webm"> 作为备选 -->
-    </video>
+    <iframe id="loveVideo" src="" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe>
   </div>
 </section>
 
@@ -206,31 +198,25 @@ function renderHeaderText(){
   const line3=`—— ${todayFmt}`;
   document.getElementById("loveText").innerHTML=`${line1}<br>${line2}<br>${line3}`;
 }
-function renderLetterGallery(){
-  const grid=document.getElementById('letterGrid');
-  grid.innerHTML='';
+function renderLetterStack(){
+  const stack=document.getElementById('letterStack');
+  stack.innerHTML='';
   (LETTER_SRCS||[]).forEach((src,i)=>{
     const a=document.createElement('a');
-    a.href=src; a.target='_blank'; a.rel='noopener'; a.className='thumb';
+    a.href=src; a.target='_blank'; a.rel='noopener'; a.className='img-wrap';
     const img=document.createElement('img');
     img.loading='lazy'; img.decoding='async'; img.alt=`手写信${i+1}`; img.src=src;
-    a.appendChild(img); grid.appendChild(a);
+    a.appendChild(img); stack.appendChild(a);
   });
   if(!LETTER_SRCS||LETTER_SRCS.length===0) document.getElementById('letter').style.display='none';
 }
 function renderVideo(){
-  const wrap=document.getElementById('video');
-  const video=document.getElementById('loveVideo');
-  if(!VIDEO_SRC){ wrap.style.display='none'; return; }
-
-  // 直接用 Drive 直链
-  video.src = VIDEO_SRC;
-
-  // 如果你也有本地 mp4/webm，可这样加备选：
-  // const s1 = document.createElement('source'); s1.src='output.webm'; s1.type='video/webm'; video.appendChild(s1);
-  // const s2 = document.createElement('source'); s2.src='output.mp4';  s2.type='video/mp4';  video.appendChild(s2);
+  const iframe=document.getElementById('loveVideo');
+  if(!DRIVE_PREVIEW_URL){ document.getElementById('video').style.display='none'; return; }
+  // 使用 Drive /preview 可在 iframe 内直接播放
+  iframe.src = DRIVE_PREVIEW_URL;
 }
-function renderAll(){ renderHeaderText(); renderLetterGallery(); renderVideo(); }
+function renderAll(){ renderHeaderText(); renderLetterStack(); renderVideo(); }
 renderAll();
 
 /* ======= 爱心动画 ======= */
