@@ -12,6 +12,7 @@
       --halo:#ffa4c2;
       --text:#fff;
       --maxw: 720px;
+      --video-ratio: 9/16; /* ← 竖屏；如需横屏改成 16/9 */
     }
     *{box-sizing:border-box}
     html,body{
@@ -50,7 +51,6 @@
     .letter h2{margin:0 0 6px 0; font-size:18px; font-weight:600; opacity:.9}
     .letter .tip{font-size:12px; opacity:.6; margin-bottom:8px}
 
-    /* 竖向一列的图片列表 */
     .letter .stack{
       display:flex; flex-direction:column; gap:12px;
       width:min(92vw,var(--maxw)); max-width:var(--maxw);
@@ -58,16 +58,16 @@
     .img-wrap{
       display:block; width:100%;
       border-radius:14px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.65);
-      background:#111;
+      background:#111; cursor:zoom-in;
     }
     .img-wrap img{
       width:100%; height:auto; display:block; image-rendering:auto;
     }
 
-    /* 视频区（Drive 预览 iframe） */
+    /* 视频区（Drive 预览 iframe，支持竖屏比例） */
     .video-wrap{
       width:min(92vw,var(--maxw)); max-width:var(--maxw);
-      aspect-ratio:16/9;
+      aspect-ratio: var(--video-ratio);
       border-radius:14px; overflow:hidden;
       box-shadow:0 14px 40px rgba(0,0,0,.65);
       background:#111;
@@ -84,7 +84,7 @@
       display:flex; align-items:center; justify-content:center; padding:20px;
     }
     #gate .card{
-      width:min(92vw, 520px); text-align:center; background:#0b0f14;
+      width:min(92vw,520px); text-align:center; background:#0b0f14;
       border:1px solid #222; border-radius:16px; padding:22px 18px;
       box-shadow:0 20px 60px rgba(0,0,0,.6)
     }
@@ -105,6 +105,32 @@
       display:none;
     }
     #musicBtn:active{ transform:scale(.98) }
+
+    /* ====== 轻量灯箱（原生） ====== */
+    .lightbox{
+      position:fixed; inset:0; z-index:20000; display:none;
+      background:rgba(0,0,0,.92);
+      align-items:center; justify-content:center;
+      padding:env(safe-area-inset-top,0) 12px env(safe-area-inset-bottom,0);
+    }
+    .lightbox.show{ display:flex; }
+    .lightbox img{
+      max-width:96vw; max-height:92vh; width:auto; height:auto; object-fit:contain;
+      border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,.7);
+    }
+    .lb-close, .lb-prev, .lb-next{
+      position:absolute; top:14px; padding:8px 12px;
+      background:rgba(0,0,0,.55); color:#fff; border:1px solid rgba(255,255,255,.15);
+      border-radius:10px; cursor:pointer; user-select:none; font-size:15px;
+    }
+    .lb-close{ right:14px }
+    .lb-prev{ left:14px; top:50%; transform:translateY(-50%) }
+    .lb-next{ right:14px; top:50%; transform:translateY(-50%) }
+    .lb-counter{
+      position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+      color:#fff; opacity:.7; font-size:12px;
+      background:rgba(0,0,0,.35); padding:4px 8px; border-radius:8px;
+    }
   </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%96%3C/text%3E%3C/svg%3E">
 </head>
@@ -116,19 +142,24 @@
   let HER_NAME   = "Baby";
   let TIMEZONE   = "Asia/Kuala_Lumpur";
 
-  // 两张手写信（竖排）
+  // 手写信（竖排显示）
   let LETTER_SRCS = ["letter1.jpg", "letter2.jpg"];
 
-  // 使用 Google Drive 预览嵌入（可播放）：/file/d/FILE_ID/preview
+  // Google Drive 预览（可播放）：/file/d/FILE_ID/preview
   // 你的文件 ID：1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy
   let DRIVE_PREVIEW_URL = "https://drive.google.com/file/d/1lDbE7nJ-bqoIBO2hcgcTLezGh9RwIkOy/preview";
 
-  // 可选 URL 覆盖：?name=&start=&imgs=imgA.jpg,imgB.jpg&drive=完整preview链接
+  // 视频比例（竖屏 9/16；想横屏就把变量改为 "16/9"）
+  let VIDEO_RATIO = "9/16";
+
+  // URL 可覆盖：?name=&start=&imgs=a.jpg,b.jpg&drive=<preview链接>&vr=16/9
   const q = new URLSearchParams(location.search);
   if (q.get("name"))  HER_NAME   = q.get("name");
   if (q.get("start")) START_DATE = q.get("start");
   if (q.get("imgs"))  LETTER_SRCS = q.get("imgs").split(",").map(s=>s.trim()).filter(Boolean);
   if (q.get("drive")) DRIVE_PREVIEW_URL = q.get("drive").trim();
+  if (q.get("vr"))    VIDEO_RATIO = q.get("vr").trim();
+  document.documentElement.style.setProperty('--video-ratio', VIDEO_RATIO);
 </script>
 
 <!-- 背景音乐 -->
@@ -154,14 +185,14 @@
   <div class="overlay-text" id="loveText"></div>
 </section>
 
-<!-- 手写信区（竖排） -->
+<!-- 手写信区（竖排 + 灯箱） -->
 <section id="letter" class="letter">
   <h2>给你的一封手写信</h2>
-  <div class="tip">（点图片可放大）</div>
+  <div class="tip">（点图片可在本页放大）</div>
   <div class="stack" id="letterStack"></div>
 </section>
 
-<!-- 回忆视频区（Drive 预览可直接播放） -->
+<!-- 回忆视频区（Drive 预览，可设竖/横屏比例） -->
 <section id="video" class="letter" style="padding-top:16px;">
   <h2>我们的回忆视频</h2>
   <div class="tip">（点击播放 / 全屏观看）</div>
@@ -169,6 +200,15 @@
     <iframe id="loveVideo" src="" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe>
   </div>
 </section>
+
+<!-- 灯箱结构 -->
+<div class="lightbox" id="lightbox" aria-modal="true" role="dialog">
+  <button class="lb-close" id="lbClose">关闭 ✕</button>
+  <button class="lb-prev"  id="lbPrev">◀</button>
+  <img id="lbImg" alt="预览">
+  <button class="lb-next"  id="lbNext">▶</button>
+  <div class="lb-counter" id="lbCounter"></div>
+</div>
 
 <div class="footer">by wenjoo ❤</div>
 
@@ -198,24 +238,89 @@ function renderHeaderText(){
   const line3=`—— ${todayFmt}`;
   document.getElementById("loveText").innerHTML=`${line1}<br>${line2}<br>${line3}`;
 }
+
+/* ======= 渲染竖排图片 + 灯箱 ======= */
+let CURRENT_INDEX = 0;
 function renderLetterStack(){
   const stack=document.getElementById('letterStack');
   stack.innerHTML='';
   (LETTER_SRCS||[]).forEach((src,i)=>{
     const a=document.createElement('a');
-    a.href=src; a.target='_blank'; a.rel='noopener'; a.className='img-wrap';
+    a.href=src; a.className='img-wrap';
     const img=document.createElement('img');
     img.loading='lazy'; img.decoding='async'; img.alt=`手写信${i+1}`; img.src=src;
     a.appendChild(img); stack.appendChild(a);
+    // 灯箱打开
+    a.addEventListener('click', (e)=>{
+      e.preventDefault();
+      openLightbox(i);
+    });
   });
   if(!LETTER_SRCS||LETTER_SRCS.length===0) document.getElementById('letter').style.display='none';
 }
-function renderVideo(){
-  const iframe=document.getElementById('loveVideo');
-  if(!DRIVE_PREVIEW_URL){ document.getElementById('video').style.display='none'; return; }
-  // 使用 Drive /preview 可在 iframe 内直接播放
-  iframe.src = DRIVE_PREVIEW_URL;
+
+/* 轻量灯箱逻辑 */
+const lb  = document.getElementById('lightbox');
+const lbImg = document.getElementById('lbImg');
+const lbPrev= document.getElementById('lbPrev');
+const lbNext= document.getElementById('lbNext');
+const lbClose=document.getElementById('lbClose');
+const lbCounter=document.getElementById('lbCounter');
+
+function updateCounter(){
+  lbCounter.textContent = `${CURRENT_INDEX+1} / ${LETTER_SRCS.length}`;
 }
+function showImage(idx){
+  CURRENT_INDEX = (idx+LETTER_SRCS.length)%LETTER_SRCS.length;
+  lbImg.src = LETTER_SRCS[CURRENT_INDEX];
+  updateCounter();
+  // 预加载下一张
+  const nextIdx = (CURRENT_INDEX+1)%LETTER_SRCS.length;
+  const pre = new Image(); pre.src = LETTER_SRCS[nextIdx];
+}
+function openLightbox(idx){
+  showImage(idx);
+  lb.classList.add('show');
+  document.body.style.overscrollBehavior='contain';
+}
+function closeLightbox(){
+  lb.classList.remove('show');
+  document.body.style.overscrollBehavior='';
+}
+
+lbPrev.addEventListener('click', ()=> showImage(CURRENT_INDEX-1));
+lbNext.addEventListener('click', ()=> showImage(CURRENT_INDEX+1));
+lbClose.addEventListener('click', closeLightbox);
+lb.addEventListener('click', (e)=>{ if(e.target===lb) closeLightbox(); });
+
+// 键盘支持
+document.addEventListener('keydown', (e)=>{
+  if(!lb.classList.contains('show')) return;
+  if(e.key==='Escape') closeLightbox();
+  if(e.key==='ArrowLeft') showImage(CURRENT_INDEX-1);
+  if(e.key==='ArrowRight') showImage(CURRENT_INDEX+1);
+});
+// 触摸滑动
+(function addSwipe(){
+  let sx=0, sy=0, dx=0, dy=0;
+  lbImg.addEventListener('touchstart', e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; dx=dy=0; }, {passive:true});
+  lbImg.addEventListener('touchmove', e=>{ const t=e.touches[0]; dx=t.clientX-sx; dy=t.clientY-sy; }, {passive:true});
+  lbImg.addEventListener('touchend', ()=>{
+    if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){
+      if(dx<0) showImage(CURRENT_INDEX+1); else showImage(CURRENT_INDEX-1);
+    }
+  }, {passive:true});
+})();
+
+/* ======= 视频（Drive 预览，竖/横屏可切换） ======= */
+function renderVideo(){
+  const sec=document.getElementById('video');
+  const iframe=document.getElementById('loveVideo');
+  if(!DRIVE_PREVIEW_URL){ sec.style.display='none'; return; }
+  iframe.src = DRIVE_PREVIEW_URL; // 预览页面可直接播放 & 全屏
+}
+
+/* ======= 汇总渲染 ======= */
 function renderAll(){ renderHeaderText(); renderLetterStack(); renderVideo(); }
 renderAll();
 
